@@ -22,8 +22,8 @@ const int right_dir_pin  = 30;
 const int right_pwm_pin  = 39;
 
 // ---------------- Calibration (from sensor_fusion.xlsx) ----------------
-const int sMin[8] = {818, 721, 612, 635, 644, 702, 703, 837};    // "Minimum" row
-const int sMax[8] = {1682, 1779, 1888, 1180, 1404, 1276, 1797, 1663}; // "Maximum" row (after min subtracted)
+const int sMin[8] = {817, 703, 634, 634, 634, 702, 749, 910};    // "Minimum" row
+const int sMax[8] = {1683, 1797, 1866, 1252, 1387, 1276, 1751, 1590}; // "Maximum" row (after min subtracted)
 
 // Fusion weights: (8-4-2-1)/4
 const int weights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
@@ -31,7 +31,7 @@ const int weight_div = 4;
 
 // ---------------- Tuning (change these while testing) ----------------
 const int   base_speed = 40;      // PWM 0-255. Start slow.
-const float Kp = 0.015;           // steering strength. error ~2000 -> 30 PWM of correction
+const float Kp = 0.025;           // steering strength. error ~2000 -> 30 PWM of correction
 const float Kd = 0.0;             // leave 0 until P alone works, then try ~0.05
 const int   error_offset = 0;     // fused value when car is centered on the line
                                   // (our data reads ~ +290 at the "0" position)
@@ -42,14 +42,11 @@ const int steer_dir = 1;
 
 const bool debug = false;         // true = print values over Serial (slows the loop)
 
-// ---------------- Globals ----------------
 uint16_t sensorValues[8];
 int normValues[8];
 int prev_error = 0;
 
-// ---------------- Motor Helpers ----------------
 void setMotors(int left_spd, int right_spd) {
-  // forward only, clamp to valid PWM range
   left_spd  = constrain(left_spd, 0, 255);
   right_spd = constrain(right_spd, 0, 255);
   digitalWrite(left_dir_pin, LOW);
@@ -63,7 +60,6 @@ void stopMotors() {
   analogWrite(right_pwm_pin, 0);
 }
 
-// ---------------- Sensor Processing ----------------
 void normalizeSensors() {
   for (int i = 0; i < 8; i++) {
     int n = ((int)sensorValues[i] - sMin[i]) * 1000 / sMax[i];
@@ -123,8 +119,8 @@ void loop() {
 
   // Line toward S8 side (positive error) -> turn toward S8 side.
   // If S8 is on the car's right, that means: left wheel faster, right wheel slower.
-  int left_spd  = base_speed + correction;
-  int right_spd = base_speed - correction;
+  int left_spd  = base_speed - correction;
+  int right_spd = base_speed + correction;
   setMotors(left_spd, right_spd);
 
   if (debug) {
