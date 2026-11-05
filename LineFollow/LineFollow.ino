@@ -30,9 +30,9 @@ const int weights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
 const int weight_div = 4;
 
 // ---------------- Tuning (change these while testing) ----------------
-const int   base_speed = 40;      // PWM 0-255. Start slow.
-const float Kp = 0.025;           // steering strength. error ~2000 -> 30 PWM of correction
-const float Kd = 0.0;             // leave 0 until P alone works, then try ~0.05
+const int   base_speed = 50;      // PWM 0-255. Start slow.
+const float Kp = 0.05;           // steering strength. error ~2000 -> 30 PWM of correction
+const float Kd = 0.05;
 const int   error_offset = 0;     // fused value when car is centered on the line
                                   // (our data reads ~ +290 at the "0" position)
 const int   lost_threshold = 300; // if NO sensor is above this, the line is lost -> stop
@@ -47,10 +47,20 @@ int normValues[8];
 int prev_error = 0;
 
 void setMotors(int left_spd, int right_spd) {
+  if (left_spd < 0) {
+    digitalWrite(left_dir_pin, HIGH);
+    left_spd = -1 * left_spd;
+  } else {
+    digitalWrite(left_dir_pin, LOW);
+  }
+  if (right_spd < 0) {
+    digitalWrite(right_dir_pin, HIGH);
+    right_spd = -1 * right_spd;
+  } else {
+    digitalWrite(right_dir_pin, LOW);
+  }
   left_spd  = constrain(left_spd, 0, 255);
   right_spd = constrain(right_spd, 0, 255);
-  digitalWrite(left_dir_pin, LOW);
-  digitalWrite(right_dir_pin, LOW);
   analogWrite(left_pwm_pin, left_spd);
   analogWrite(right_pwm_pin, right_spd);
 }
@@ -114,6 +124,7 @@ void loop() {
   }
 
   int error = fuseSensors();
+
   int correction = steer_dir * (Kp * error + Kd * (error - prev_error));
   prev_error = error;
 
