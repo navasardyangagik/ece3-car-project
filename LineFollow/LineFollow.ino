@@ -1,15 +1,15 @@
-// ECE 3 — Line Follower (sensor fusion + proportional steering)
+// ECE 3 — Line Follower (sensor fusion + PD steering)
 //
 // How it works, every loop:
 //   1. Read the 8 IR sensors (raw ~600-2500).
 //   2. Normalize each to 0-1000 using our calibration (min / max below).
 //   3. Fuse all 8 into ONE error value with the (8-4-2-1)/4 weights.
 //      negative = line toward S1 side, positive = line toward S8 side.
-//   4. Steer: one wheel speeds up, the other slows down, in proportion to error.
-//   5. If no sensor sees black (line lost), stop.
+//   4. Steer using error and its change since the previous loop (PD).
+//   5. If the line is lost, briefly turn toward its last seen side, then stop.
 //
-// All calibration values are hardcoded from sensor_fusion.xlsx — nothing is
-// computed on the car.
+// Calibration constants come from sensor_fusion.xlsx; normalization and
+// steering are computed on the car.
 
 #include <ECE3.h>
 
@@ -22,29 +22,30 @@ const int right_dir_pin  = 30;
 const int right_pwm_pin  = 39;
 
 // ---------------- Calibration (from sensor_fusion.xlsx) ----------------
-const int sMin[8] = {817, 703, 634, 634, 634, 702, 749, 910};    // "Minimum" row
-const int sMax[8] = {1683, 1797, 1866, 1252, 1387, 1276, 1751, 1590}; // "Maximum" row (after min subtracted)
+const int sMin[8] = {818, 721, 612, 635, 644, 702, 703, 837};    // B24:I24, "Minimum"
+const int sMax[8] = {1682, 1779, 1888, 1180, 1404, 1276, 1797, 1663}; // K24:R24, max after min subtracted
 
 // Fusion weights: (8-4-2-1)/4
 const int weights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
 const int weight_div = 4;
 
 // ---------------- Tuning (change these while testing) ----------------
-const int   base_speed = 50;      // PWM 0-255. Start slow.
-const float Kp = 0.05;           // steering strength. error ~2000 -> 30 PWM of correction
-const float Kd = 0.05;
-const int   error_offset = 0;     // fused value when car is centered on the line
-                                  // (our data reads ~ +290 at the "0" position)
-const int   lost_threshold = 300; // if NO sensor is above this, the line is lost -> stop
+const int   base_speed = 70;      // PWM 0-255. Start slow.
+const float Kp = 0.05;           // error 2000 -> 100 PWM proportional correction
+const float Kd = 0.035;
+const int   error_offset = 290;   // AC13: fused value at the sheet's "0" position
+const int   lost_threshold = 300; // if NO sensor is above this, the line is lost
+const int   rebound_speed = 70;   // equal forward/reverse PWM during recovery
+const unsigned long rebound_ms = 250; // stop if the line is still missing
 
 // If the car turns AWAY from the line instead of toward it, change this to -1.
 const int steer_dir = 1;
 
-const bool debug = false;         // true = print values over Serial (slows the loop)
-
 uint16_t sensorValues[8];
 int normValues[8];
 int prev_error = 0;
+unsigned long last_line_time = 0;
+bool line_was_lost = true;
 
 void setMotors(int left_spd, int right_spd) {
   if (left_spd < 0) {
@@ -117,26 +118,30 @@ void loop() {
   normalizeSensors();
 
   if (!lineDetected()) {
-    stopMotors();
-    prev_error = 0;
-    if (debug) Serial.println("LINE LOST - stopped");
+    line_was_lost = true;
+    if (prev_error != 0 && millis() - last_line_time < rebound_ms) {
+      // Keep turning toward the last seen line, around the car's middle.
+      int turn = steer_dir * (prev_error > 0 ? rebound_speed : -rebound_speed);
+      setMotors(-turn, turn);
+    } else {
+      stopMotors();
+      prev_error = 0;
+    }
     return;
   }
 
   int error = fuseSensors();
+  last_line_time = millis();
+  // Start fresh after recovery so the derivative does not jerk the wheels.
+  if (line_was_lost) prev_error = error;
+  line_was_lost = false;
 
   int correction = steer_dir * (Kp * error + Kd * (error - prev_error));
   prev_error = error;
 
-  // Line toward S8 side (positive error) -> turn toward S8 side.
-  // If S8 is on the car's right, that means: left wheel faster, right wheel slower.
+  // Positive correction slows/reverses the left wheel and speeds up the right.
+  // This keeps the existing steering direction; steer_dir flips it if needed.
   int left_spd  = base_speed - correction;
   int right_spd = base_speed + correction;
   setMotors(left_spd, right_spd);
-
-  if (debug) {
-    Serial.print("err: ");  Serial.print(error);
-    Serial.print("  L: ");  Serial.print(left_spd);
-    Serial.print("  R: ");  Serial.println(right_spd);
-  }
 }
