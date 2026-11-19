@@ -14,7 +14,7 @@ const int weights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
 
 // PD tuning
 const int base_speed = 80;
-const float Kp = 0.10f;
+const float Kp = 0.09f;
 const float Kd = 0.48f;
 const int error_offset = 290;
 const int steer_dir = 1;
