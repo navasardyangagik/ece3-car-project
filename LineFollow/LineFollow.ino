@@ -22,7 +22,7 @@ const int right_dir_pin  = 30;
 const int right_pwm_pin  = 39;
 
 // ---------------- Calibration (from sensor_fusion.xlsx) ----------------
-const int sMin[8] = {818, 721, 612, 635, 644, 702, 703, 837};    // B24:I24, "Minimum"
+const int sMin[8] = {818, 721, 612, 635, 644, 702, 703, 837};    // B24:I24, "Minimum"/Users/gagik/Desktop/ece3-car-project/ECE3_NOENCODER_ORIGINAL_LOOKATTHISON
 const int sMax[8] = {1682, 1779, 1888, 1180, 1404, 1276, 1797, 1663}; // K24:R24, max after min subtracted
 
 // Fusion weights: (8-4-2-1)/4

@@ -13,9 +13,9 @@ const int sMax[8] = {1682, 1779, 1888, 1180, 1404, 1276, 1797, 1663}; // spans a
 const int weights[8] = {-8, -4, -2, -1, 1, 2, 4, 8};
 
 // PD tuning
-const int base_speed = 70;
-const float Kp = 0.05f;
-const float Kd = 0.035f;
+const int base_speed = 80;
+const float Kp = 0.10f;
+const float Kd = 0.48f;
 const int error_offset = 290;
 const int steer_dir = 1;
 
